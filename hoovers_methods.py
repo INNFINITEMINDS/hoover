@@ -8,10 +8,10 @@ implementing Adam Hoover's method
 import csv
 import numpy as np
 import pandas as pd
-import os
+import scipy.ndimage
 import matplotlib.pyplot as plt
 
-path="../../MotifCounter/"
+path="" #../../MotifCounter/
 file_name="P5_raw.csv"
 #I'm very worried that this will be noisy as heck
 peaks=""
@@ -21,30 +21,54 @@ def readData(path):
     print("reading data from "+path)
     with open(path, "r") as csvfile:
         reader = csv.reader(csvfile, delimiter=",")
-        next(reader,None)
+        next(reader,None) 
         d = list(reader)    
     
     # import data and reshape appropriately
     data = np.array(d).astype("float") #this might be bad because it shouldn't be 0 but it is
-    #just for now cut the data by a lot to make it a=managable
-    X = data[:,[1,2]] #I just want the time and xyz energy I think
+    
+    
+    #Linear_Accel_x	Angular_Velocity_x	Linear_Accel_y	Time	
+#    Angular_Velocity_z	Angular_Velocity_y	Linear_Accel_z
+    
+    #just for now cut the data by a lot to make it managable
+    X = data[1:36000,1:] #we want all of them except the first col, which is indices
     
 
     print("done reading in the data")
     return X
 
-def smooth(x):
+def smooth(x): #TODO: figure out good params for the smoothing
     #So there are 15 obs/sec and I think the hoover paper smoothed minute by minute
-    window_len=15*10
-    s=np.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
-    w=np.hanning(window_len)
-    y=np.convolve(w/w.sum(),s,mode='same')
+    #not really about sigma or window size, or end behavior     
+    y=x    
+    
+    for col in [0, 1, 2, 3, 5, 6]: # skip the time index
+        y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 50)
+        #might need to have this be a per thing basis
     
     print("oooohh weeeee I smoothed some data")
-    return y[window_len:-window_len+1]
+    return y
+    
+def energyGeneration(x): 
+    #energy goes first (look at eq 2 from paper)    
+    window_size=1860 #they use 1 minute, so 31hz*60 that many obs per min
+    
+    energy=np.zeros((x.shape[0]-window_size,1)) 
     
 
-
+    iter=0
+    print("this thing should happen times",len(x[int(window_size/2):-int(window_size/2),0]))
+    for i in x[int(window_size/2):-int(window_size/2),0]: #this is such a stupid way to write this
+        
+        energy[iter]=sum([abs(number) for number in x[window_size/2+iter:window_size+iter,0]])+sum([abs(number) for number in x[window_size/2+iter:window_size+iter,1]])+sum([abs(number) for number in x[window_size/2+iter:window_size+iter,2]])
+        energy[iter]=1/(window_size+1) *  energy[iter]
+        
+        iter+=1
+        
+    print(iter)
+    return energy
+    
 def hooverSegmentation(energy_vs_time):
     eng_df=pd.DataFrame(energy_vs_time)
     peaks=pd.DataFrame()    
@@ -94,16 +118,18 @@ def hooverSegmentation(energy_vs_time):
     return peaks
 
 def main():
-    energy=readData(path+file_name)
+    raw=readData(path+file_name)
 #    plt.plot(energy[:,1])
-    energy[:,1]=smooth(energy[:,1])
+    smoothed=smooth(raw)
+    energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
     
-    plt.plot(energy[:,1])
+#    features=
+    plt.plot(energy)
 #    plt.axvline(x=5, ymin=0, ymax=4.0 / max(data), linewidth=4)
     
 #    peaks=hooverSegmentation(energy)
     
-    print("this should be one of the peaks",max(energy[:,1]))
+    print("this should be one of the peaks",max(smoothed[:,1]))
     return peaks
     
     
