@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage
 import matplotlib.pyplot as plt
+import os
 
 path="" #../../MotifCounter/
 file_name="P5_raw.csv"
@@ -32,7 +33,7 @@ def readData(path):
 #    Angular_Velocity_z	Angular_Velocity_y	Linear_Accel_z
     
     #just for now cut the data by a lot to make it managable
-    X = data[1:36000,1:] #we want all of them except the first col, which is indices
+    X = data[1:,1:] #we want all of them except the first col, which is indices
     
 
     print("done reading in the data")
@@ -66,7 +67,10 @@ def energyGeneration(x):
         
         iter+=1
         
-    print(iter)
+    energy_df=pd.DataFrame(energy)
+    energy_df.to_csv("energy.csv")
+    
+    
     return energy
     
 def hooverSegmentation(energy_vs_time):
@@ -121,7 +125,8 @@ def main():
     raw=readData(path+file_name)
 #    plt.plot(energy[:,1])
     smoothed=smooth(raw)
-    energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
+    if not os.path.exists("energy.csv"):
+        energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
     
 #    features=
     plt.plot(energy)
