@@ -141,8 +141,10 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         
 #        temp_df["time_of_peak"].iloc[0]=energy.index.get_loc(energy["Energy"].iloc[start_segment:duration_t].argmax())
 #        temp_df["peak_value"].iloc[0]=local_peak
+        peak_dictionary["time"].append(energy["Energy"].iloc[start_segment:duration_t].index.get_loc(hmm))
+        peak_dictionary["value"].append(local_peak)
         
-        peaks.concat([peaks,temp_df])
+#        peaks.concat([peaks,temp_df])
         
         #maybe update the start of the buffer here?
         start_segment=t        
@@ -150,7 +152,10 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         t+=1
             
 #    peaks.to_csv("peaks.csv", mode='a')
-    return peaks
+#    return peaks
+        
+    return peak_dictionary
+    
 
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
