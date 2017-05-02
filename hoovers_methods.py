@@ -45,8 +45,11 @@ def smooth(x): #TODO: figure out good params for the smoothing
     y=x    
     
     for col in [0, 1, 2, 3, 5, 6]: # skip the time index
-        y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 50)
+        y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 100)
         #might need to have this be a per thing basis
+
+    smoothed_df=pd.DataFrame(y)
+    smoothed_df.to_csv("smoothed.csv")    
     
     print("oooohh weeeee I smoothed some data")
     return y
@@ -73,71 +76,87 @@ def energyGeneration(x):
     
     return energy
     
-def hooverSegmentation(energy_vs_time):
-    eng_df=pd.DataFrame(energy_vs_time)
-    peaks=pd.DataFrame()    
-    peaks["0"]=0
-    t=0
+def hooverSegmentation(energy):
+    peaks=pd.DataFrame(columns=["time_of_peak","peak_value"])    
 
-#    for i in range(eng_df.shape[0]):
-#        if i % 100==1:        
-#            print(i)
-    print(eng_df.shape[0])
-    while t < eng_df.shape[0]: #forget the while loop until I can detect 1 peak correctly
-#        t=i
-#    for t in range(3):
-        print("the t value is currently:", eng_df.iloc[t,0])
-        print("the energy value is currently:", eng_df.iloc[t,1])
-        thresh1=eng_df.iloc[t,1]
+    t=0
+    start_segment=0
+    #Use a subset for now!
+    energy=energy.loc[:10000]
+    plt.plot(energy["Energy"].iloc[4300:7900])    
+    
+    print(energy.shape[0])
+    while t < energy.shape[0]: #forget the while loop until I can detect 1 peak correctly
+        print("the t value is currently:", t)
+        print("the energy value is currently:", energy["Energy"].iloc[t])
+        thresh1=energy["Energy"].iloc[t]
         thresh2=thresh1*2
         
         print("the thresholds are",thresh1,thresh2)
         
         local_t=t
-        while(eng_df.iloc[local_t,1] < thresh2 and local_t < eng_df.shape[0] -1):
+        while(energy["Energy"].iloc[local_t] < thresh2 and local_t < energy.shape[0] -1):
             local_t+=1
-            if eng_df.iloc[local_t,1] < thresh1:
+            if energy["Energy"].iloc[local_t] < thresh1:
                 #reset the thresholds
                 print("reseting the threshold at index",local_t)
-                thresh1=eng_df.iloc[local_t,1]
+                thresh1=energy["Energy"].iloc[local_t]
                 thresh2=thresh1*2
+                
                 t=local_t
         
-        #the signal exceed the second threshold or there is a min at the first data point
+        #the signal exceed the second threshold or you reached the end without a spike
         
         #need some way to distinguish between the two different cases here!!        
         
-        #    if thresh2 not in peaks["0"]:# and peaks.shape[0]>0:
-        #        peaks=pd.concat([peaks,eng_df.loc[t]],axis=1)
-        #        print("added a peak!")
         duration_t=t
-        while(eng_df.iloc[duration_t,1] > thresh1 and duration_t < eng_df.shape[0] -1 ):
+        while(energy["Energy"].iloc[duration_t] > thresh1 and duration_t < energy.shape[0] -1 ):
             duration_t+=1
-        print("I think the peak is at", local_t)
+        print("I think the peak is between", local_t)
         print("and it's duration is until time", duration_t)
         t=duration_t
+        
+        test_var=energy["Energy"].iloc[start_segment:duration_t] #TODO: figure out this indexing
+        print(test_var)
+        
+        #something weird at index 4394        
+        
+        local_peak=max(energy["Energy"].iloc[start_segment:duration_t])
+        
+        print(energy.index.get_loc[local_peak],local_peak)
+        
+#        peaks.append( {"time_of_peak":,"peak_value": local_peak }  )
+        
+        #maybe update the start of the buffer here?
+        start_segment=t        
+        
         t+=1
             
-    peaks.to_csv("peaks1.csv", mode='a')
+#    peaks.to_csv("peaks.csv", mode='a')
     return peaks
 
-def main():
-    raw=readData(path+file_name)
-#    plt.plot(energy[:,1])
-    smoothed=smooth(raw)
-    if not os.path.exists("energy.csv"):
+if __name__ == "__main__":
+    if not os.path.exists(path+"smoothed.csv"):
+        raw=readData(path+file_name)
+        smoothed=smooth(raw)
+    else:
+        #Linear_Accel_x	Angular_Velocity_x	Linear_Accel_y	Time	
+#    Angular_Velocity_z	Angular_Velocity_y	Linear_Accel_z
+        smoothed=pd.read_csv("smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
+    if not os.path.exists(path+"energy.csv"):
         energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
+    else:
+        energy=pd.read_csv("energy.csv", names=["Energy"],index_col=0, header=0)
+    
+    
     
 #    features=
-    plt.plot(energy)
-#    plt.axvline(x=5, ymin=0, ymax=4.0 / max(data), linewidth=4)
+#    plt.plot(energy["Energy"])
+
+    peaks=hooverSegmentation(energy)
     
-#    peaks=hooverSegmentation(energy)
-    
-    print("this should be one of the peaks",max(smoothed[:,1]))
-    return peaks
+
     
     
     
-peaks=main()
-print("yay done with main!")
+    print("yay done with main!")
