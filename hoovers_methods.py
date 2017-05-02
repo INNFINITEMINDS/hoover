@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage
 import matplotlib.pyplot as plt 
+from sklearn.naive_bayes import GaussianNB
 
 import os
 
@@ -208,8 +209,14 @@ def wristRollRegularityFeature(segment):
     return 1/(len(segment))*sum([1 for number in segment["Angular_Velocity_y"] if abs(number) > 10 ])
 
 
-def classification(feats):
-    raise Exception("Not impletemented")
+def classification(feats,target):
+    gnb=GaussianNB()
+    
+    gnb.fit(features,target)
+    
+    print(gnb.predict_proba(features))
+    
+    #raise Exception("Not impletemented")
 
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
@@ -231,4 +238,11 @@ if __name__ == "__main__":
     else:
         features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
     
+    #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
+    
+    #these targets are not right but just go with it
+    targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"])
+    classification(features,targets)
+    
     print("yay done with main!")
+    
