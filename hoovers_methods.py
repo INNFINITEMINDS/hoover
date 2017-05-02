@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 import os
 
 path="" #../../MotifCounter/
-file_name="P5_raw.csv"
+subj="P4" #tried P5 and I don't think there was enough variability to do this
+file_name=subj+"_raw.csv"
 #I'm very worried that this will be noisy as heck
 peaks=""
 iter=0
@@ -45,18 +46,20 @@ def smooth(x): #TODO: figure out good params for the smoothing
     y=x    
     
     for col in [0, 1, 2, 3, 5, 6]: # skip the time index
-        y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 100)
+        y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 10) #this is from the paper
         #might need to have this be a per thing basis
 
     smoothed_df=pd.DataFrame(y)
-    smoothed_df.to_csv("smoothed.csv")    
+    smoothed_df.to_csv(subj+"_smoothed.csv")    
     
     print("oooohh weeeee I smoothed some data")
     return y
     
 def energyGeneration(x): 
     #energy goes first (look at eq 2 from paper)    
-    window_size=1860 #they use 1 minute, so 31hz*60 that many obs per min
+    window_size=60
+    #Naively try 20 seconds
+    #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
     energy=np.zeros((x.shape[0]-window_size,1)) 
     
@@ -71,28 +74,31 @@ def energyGeneration(x):
         iter+=1
         
     energy_df=pd.DataFrame(energy)
-    energy_df.to_csv("energy.csv")
+    energy_df.to_csv(subj+"_energy.csv")
     
     
     return energy
     
-def hooverSegmentation(energy):
+def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn't enough varaiblility in the energy data
     peaks=pd.DataFrame(columns=["time_of_peak","peak_value"])    
 
     t=0
     start_segment=0
     #Use a subset for now!
-    energy=energy.loc[:10000]
-    plt.plot(energy["Energy"].iloc[4300:7900])    
+    energy=energy.loc[:]
+    plt.plot(energy["Energy"])    
+    plt.show()    
+    
+    peak_dictionary={"time":[],"value":[]}
     
     print(energy.shape[0])
     while t < energy.shape[0]: #forget the while loop until I can detect 1 peak correctly
-        print("the t value is currently:", t)
-        print("the energy value is currently:", energy["Energy"].iloc[t])
+#        print("the t value is currently:", t)
+#        print("the energy value is currently:", energy["Energy"].iloc[t])
         thresh1=energy["Energy"].iloc[t]
         thresh2=thresh1*2
         
-        print("the thresholds are",thresh1,thresh2)
+#        print("the thresholds are",thresh1,thresh2)
         
         local_t=t
         while(energy["Energy"].iloc[local_t] < thresh2 and local_t < energy.shape[0] -1):
@@ -115,17 +121,28 @@ def hooverSegmentation(energy):
         print("I think the peak is between", local_t)
         print("and it's duration is until time", duration_t)
         t=duration_t
-        
-        test_var=energy["Energy"].iloc[start_segment:duration_t] #TODO: figure out this indexing
-        print(test_var)
-        
+              
         #something weird at index 4394        
         
         local_peak=max(energy["Energy"].iloc[start_segment:duration_t])
         
-        print(energy.index.get_loc[local_peak],local_peak)
+#        print(local_peak)        
+#        print(energy.index.get_loc(energy["Energy"].argmax()))
+
+#        print(energy.index.get_loc[local_peak],local_peak)
+#        temp_df=pd.DataFrame({"time_of_peak":energy.index.get_loc(energy["Energy"].argmax()),"peak_value": local_peak })
         
-#        peaks.append( {"time_of_peak":,"peak_value": local_peak }  )
+        temp_df=pd.DataFrame(columns=["time_of_peak","peak_value"])
+        hmm=energy["Energy"].iloc[start_segment:duration_t].argmax()
+        print(hmm) 
+        print("this should be the index",energy["Energy"].iloc[start_segment:duration_t].index.get_loc(hmm))
+#        test=energy.index.get_loc(hmm)        
+               
+        
+#        temp_df["time_of_peak"].iloc[0]=energy.index.get_loc(energy["Energy"].iloc[start_segment:duration_t].argmax())
+#        temp_df["peak_value"].iloc[0]=local_peak
+        
+        peaks.concat([peaks,temp_df])
         
         #maybe update the start of the buffer here?
         start_segment=t        
@@ -136,17 +153,17 @@ def hooverSegmentation(energy):
     return peaks
 
 if __name__ == "__main__":
-    if not os.path.exists(path+"smoothed.csv"):
+    if not os.path.exists(path+subj+"_smoothed.csv"):
         raw=readData(path+file_name)
         smoothed=smooth(raw)
     else:
         #Linear_Accel_x	Angular_Velocity_x	Linear_Accel_y	Time	
 #    Angular_Velocity_z	Angular_Velocity_y	Linear_Accel_z
-        smoothed=pd.read_csv("smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
-    if not os.path.exists(path+"energy.csv"):
+        smoothed=pd.read_csv(subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
+    if not os.path.exists(path+subj+"_energy.csv"):
         energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
     else:
-        energy=pd.read_csv("energy.csv", names=["Energy"],index_col=0, header=0)
+        energy=pd.read_csv(subj+"_energy.csv", names=["Energy"],index_col=0, header=0)
     
     
     
