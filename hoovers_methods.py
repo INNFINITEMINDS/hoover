@@ -167,6 +167,7 @@ def manipulationFeature(segment):
     denom=[abs(number) for number in segment["Linear_Accel_x"]]+[abs(number) for number in segment["Linear_Accel_y"]]+[abs(number) for number in segment["Linear_Accel_z"]]
     
     manip=1/(len(segment))*sum(num/denom) # I really hope this is elementwise
+    #also hope this is in degrees per second
     
     return manip
     
@@ -177,10 +178,14 @@ def linearAccelerationFeature(segment):
    return energy
   
 def wristRollFeature(segment):
-    raise Exception("Not impletemented")
+    #double check to make sure this is supposed to be y
+    return 1/(len(segment)) * [abs(number- np.average(segement["Angular_Velocity_y"])) for number in segement["Angular_Velocity_y"]]
     
 def wristRollRegularityFeature(segment):
-    raise Exception("Not impletemented")
+    #I don't get the whole +8 thing
+    #TODO: fix this with the + 8 seconds
+    return 1/(len(segment))*[1 if abs(number) > 10 for number in segment["Angular_Velocity_y"]]
+
 
 def classification(feats):
     raise Exception("Not impletemented")
