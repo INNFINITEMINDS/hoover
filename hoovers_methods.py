@@ -143,6 +143,43 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     return peak_dictionary
     
 def featureGeneration(smooth, peaks):
+    #do some stuff to shape according to the peaks and then have a for loop
+    #in each for loop, they should add there stuff to a csv
+    
+    #TODO: this first part
+    #smooth + peaks -> data
+    
+    
+    features=pd.DataFrame(np.zeros((number of segments,4)), names["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"] )
+    
+    iter=0
+    for segment in data:
+        features["Manipulation"].iloc[iter]=manipulationFeature(segement)
+        features["LinearAcc"].iloc[iter]=linearAccelerationFeature(segment)
+        features["WristRoll"].iloc[iter]=wristRollFeature(segment)
+        features["WristRollRegularity"].iloc[iter]=wristRollRegularityFeature(segment)
+        iter+=1
+            
+    return features
+    
+def manipulationFeature(segment):
+    num=[abs(number) for number in segment["Angular_Velocity_x"]]+[abs(number) for number in segment["Angular_Velocity_y"]]+[abs(number) for number in segment["Angular_Velocity_z"]]
+    denom=[abs(number) for number in segment["Linear_Accel_x"]]+[abs(number) for number in segment["Linear_Accel_y"]]+[abs(number) for number in segment["Linear_Accel_z"]]
+    
+    manip=1/(len(segment))*sum(num/denom) # I really hope this is elementwise
+    
+    return manip
+    
+def linearAccelerationFeature(segment):
+    linacc=sum([abs(number) for number in segment["Linear_Accel_y"]])+sum([abs(number) for number in segment["Linear_Accel_z"]])
+    linacc=1/(len(segment)) *  linacc #this might have to be shape[0] insteas of len
+   
+   return energy
+  
+def wristRollFeature(segment):
+    raise Exception("Not impletemented")
+    
+def wristRollRegularityFeature(segment):
     raise Exception("Not impletemented")
 
 def classification(feats):
