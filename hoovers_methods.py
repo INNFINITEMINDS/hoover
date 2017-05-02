@@ -57,7 +57,7 @@ def smooth(x): #TODO: figure out good params for the smoothing
     
 def energyGeneration(x): 
     #energy goes first (look at eq 2 from paper)    
-    window_size=60
+    window_size=720
     #Naively try 20 seconds
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
@@ -80,16 +80,15 @@ def energyGeneration(x):
     return energy
     
 def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn't enough varaiblility in the energy data
-    peaks=pd.DataFrame(columns=["time_of_peak","peak_value"])    
-
     t=0
     start_segment=0
     #Use a subset for now!
-    energy=energy.loc[:]
-    plt.plot(energy["Energy"])    
+#    energy=energy.loc[:]
+    plt.plot(energy["Energy"].iloc[:])    
     plt.show()    
     
     peak_dictionary={"time":[],"value":[]}
+      
     
     print(energy.shape[0])
     while t < energy.shape[0]: #forget the while loop until I can detect 1 peak correctly
@@ -109,76 +108,62 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
                 thresh1=energy["Energy"].iloc[local_t]
                 thresh2=thresh1*2
                 
-                t=local_t
+        t=local_t
+       
+        duration_t=t #FIXME: this is probs the bug
         
-        #the signal exceed the second threshold or you reached the end without a spike
-        
-        #need some way to distinguish between the two different cases here!!        
-        
-        duration_t=t
         while(energy["Energy"].iloc[duration_t] > thresh1 and duration_t < energy.shape[0] -1 ):
             duration_t+=1
         print("I think the peak is between", local_t)
         print("and it's duration is until time", duration_t)
         t=duration_t
-              
-        #something weird at index 4394        
         
         local_peak=max(energy["Energy"].iloc[start_segment:duration_t])
-        
-#        print(local_peak)        
-#        print(energy.index.get_loc(energy["Energy"].argmax()))
-
-#        print(energy.index.get_loc[local_peak],local_peak)
-#        temp_df=pd.DataFrame({"time_of_peak":energy.index.get_loc(energy["Energy"].argmax()),"peak_value": local_peak })
-        
+             
         temp_df=pd.DataFrame(columns=["time_of_peak","peak_value"])
         hmm=energy["Energy"].iloc[start_segment:duration_t].argmax()
         print(hmm) 
-        print("this should be the index",energy["Energy"].iloc[start_segment:duration_t].index.get_loc(hmm))
-#        test=energy.index.get_loc(hmm)        
-               
-        
-#        temp_df["time_of_peak"].iloc[0]=energy.index.get_loc(energy["Energy"].iloc[start_segment:duration_t].argmax())
-#        temp_df["peak_value"].iloc[0]=local_peak
-        peak_dictionary["time"].append(energy["Energy"].iloc[start_segment:duration_t].index.get_loc(hmm))
+        print("this should be the index",hmm)
+
+        #times part is not right maybe have a +t because argmax might be from the start of the interval
+        peak_dictionary["time"].append(hmm)
         peak_dictionary["value"].append(local_peak)
         
-#        peaks.concat([peaks,temp_df])
+
         
         #maybe update the start of the buffer here?
         start_segment=t        
         
         t+=1
-            
-#    peaks.to_csv("peaks.csv", mode='a')
-#    return peaks
-        
+    
+    peaks=pd.DataFrame(peak_dictionary)
+    peaks.to_csv(path+subj+"_peaks.csv")
+    
+    
     return peak_dictionary
     
+def featureGeneration(smooth, peaks):
+    raise Exception("Not impletemented")
+
+def classification(feats):
+    raise Exception("Not impletemented")
 
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
         raw=readData(path+file_name)
         smoothed=smooth(raw)
     else:
-        #Linear_Accel_x	Angular_Velocity_x	Linear_Accel_y	Time	
-#    Angular_Velocity_z	Angular_Velocity_y	Linear_Accel_z
         smoothed=pd.read_csv(subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
     if not os.path.exists(path+subj+"_energy.csv"):
         energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
     else:
         energy=pd.read_csv(subj+"_energy.csv", names=["Energy"],index_col=0, header=0)
-    
-    
-    
-#    features=
-#    plt.plot(energy["Energy"])
-
-    peaks=hooverSegmentation(energy)
-    
-
-    
-    
+    if not os.path.exists(path+subj+"_peaks.csv"):
+        peaks=hooverSegmentation(energy)
+    else:
+        peaks=pd.read_csv(subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
+        
+    featureGeneration(smoothed,peaks)
+#    features
     
     print("yay done with main!")
