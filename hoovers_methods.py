@@ -73,7 +73,7 @@ def smooth(x): #TODO: figure out good params for the smoothing
     print("I smoothed some data")
     return y
     
-def energyGeneration(x): 
+def energyGeneration(x): #maybe change this to include Time?
     #energy goes first (look at eq 2 from paper)    
     window_size=720
     #Naively try 20 seconds
@@ -218,6 +218,12 @@ def classification(feats,target):
     
     #raise Exception("Not impletemented")
 
+def makePlot(peaks,energy):
+     plt.plot(peaks["time"],peaks["value"], marker='o', linestyle='None', color='r')
+     plt.plot(energy["Energy"])
+     plt.show()
+     plt.savefig("annotatedEnergy.png" )
+
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
         raw=readData(path+file_name)
@@ -241,8 +247,13 @@ if __name__ == "__main__":
     #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
     
     #these targets are not right but just go with it
-    targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"])
+    targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"]) #change this to a function that reads in the episode time and calculates if its in the segement
+    
+    
     classification(features,targets)
+    
+    makePlot(peaks,energy)#also add the actual eating epsiodes 
+    
     
     print("yay done with main!")
     
