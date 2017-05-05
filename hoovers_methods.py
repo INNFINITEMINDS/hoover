@@ -102,6 +102,8 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     start_segment=0
     #Use a subset for now!
 #    energy=energy.loc[:]
+  
+    
     plt.plot(energy["Energy"].iloc[:])    
     plt.show()    
     
@@ -112,7 +114,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
 #        print("the t value is currently:", t)
 #        print("the energy value is currently:", energy["Energy"].iloc[t])
         thresh1=energy["Energy"].iloc[t]
-        thresh2=thresh1*1.5 #originally this is 2
+        thresh2=thresh1*2 #originally this is 2
         
 #        print("the thresholds are",thresh1,thresh2)
         
@@ -123,13 +125,13 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
                 #reset the thresholds
                 print("reseting the threshold at index",local_t)
                 thresh1=energy["Energy"].iloc[local_t]
-                thresh2=thresh1*1.5
+                thresh2=thresh1*2
                 
         t=local_t
        
         duration_t=t #FIXME: this is probs the bug
         
-        while(energy["Energy"].iloc[duration_t] > thresh1 and duration_t < energy.shape[0] -1 ):
+        while(energy["Energy"].iloc[duration_t] >= thresh1 and duration_t < energy.shape[0] -1 ):
             duration_t+=1
         print("I think the peak is between", local_t)
         print("and it's duration is until time", duration_t)
@@ -152,7 +154,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         t+=1
     
     peaks=pd.DataFrame(peak_dictionary)
-    peaks.to_csv(path+subj+"_peaks.csv")
+#    peaks.to_csv(path+subj+"_peaks.csv")
     
     return peaks
     
@@ -235,6 +237,8 @@ if __name__ == "__main__":
     else:
         energy=pd.read_csv(subj+"_energy.csv", names=["Energy"],index_col=0, header=0)
     if not os.path.exists(path+subj+"_peaks.csv"):
+        # use my own function to see what is happening
+        energy=pd.DataFrame(np.multiply(np.arange(100),2*np.sin(0.1*np.arange(100))**2),columns=["Energy"])  
         peaks=hooverSegmentation(energy)
     else:
         peaks=pd.read_csv(path+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
@@ -250,7 +254,7 @@ if __name__ == "__main__":
     targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"]) #change this to a function that reads in the episode time and calculates if its in the segement
     
     
-    classification(features,targets)
+#    classification(features,targets)
     
     makePlot(peaks,energy)#also add the actual eating epsiodes 
     
