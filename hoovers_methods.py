@@ -14,7 +14,7 @@ from sklearn.naive_bayes import GaussianNB
 
 import os
 
-path="" #../../MotifCounter/
+path="P4/" #../../MotifCounter/
 subj="P4" #tried P5 and I don't think there was enough variability to do this
 file_name=subj+"_raw.csv"
 #I'm very worried that this will be noisy as heck
@@ -60,7 +60,7 @@ def smooth(x): #TODO: figure out good params for the smoothing
     
 
     
-    for col in [0, 1, 2, 3, 5, 6]: # skip the time index
+    for col in [0, 1, 2, 3, 5, 6]: #FIXME: skip the time index
         y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 10)#maybe replace this with the other helper function
         
         
@@ -68,40 +68,40 @@ def smooth(x): #TODO: figure out good params for the smoothing
         #might need to have this be a per thing basis
 
     smoothed_df=pd.DataFrame(y)
-    smoothed_df.to_csv(subj+"_smoothed.csv")    
+    smoothed_df.to_csv(path+subj+"_smoothed.csv")    
     
     print("I smoothed some data")
-    return y
+    return smoothed_df
     
 def energyGeneration(x): #maybe change this to include Time?
     #energy goes first (look at eq 2 from paper)    
-    window_size=720
-    #Naively try 20 seconds
+    window_size=1860
+    #Naively try 20 seconds 720
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
-    energy=np.zeros((x.shape[0]-window_size,1)) 
+    energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size,1)) , columns=["Energy"])
     
 
-    iter=0
-    print("this thing should happen times",len(x[int(window_size/2):-int(window_size/2),0]))
-    for i in x[int(window_size/2):-int(window_size/2),0]: #this is such a stupid way to write this
-        
-        energy[iter]=sum([abs(number) for number in x[window_size/2+iter:window_size+iter,0]])+sum([abs(number) for number in x[window_size/2+iter:window_size+iter,1]])+sum([abs(number) for number in x[window_size/2+iter:window_size+iter,2]])
-        energy[iter]=1/(window_size+1) *  energy[iter]
-        
-        iter+=1
-        
-    energy_df=pd.DataFrame(energy)
-    energy_df.to_csv(subj+"_energy.csv")
+#    iter=0
+    print("this thing should happen times",x.shape[0]-window_size)    
+    
+    for ii in range(x.shape[0]-window_size): 
+        sumx=sum([abs(number) for number in x["Linear_Accel_x"].iloc[int(window_size/2)+ii:window_size+ii]])
+        sumy=sum([abs(number) for number in x["Linear_Accel_y"].iloc[int(window_size/2)+ii:window_size+ii]])
+        sumz=sum([abs(number) for number in x["Linear_Accel_z"].iloc[int(window_size/2)+ii:window_size+ii]])
+        energy_df["Energy"].iloc[ii]=1/(window_size+1)*(sumx+sumy+sumz)
+            
+    energy_df.to_csv(path+subj+"_energy.csv")
     
     
-    return energy
+    return energy_df
     
 def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn't enough varaiblility in the energy data
     t=0
     start_segment=0
     #Use a subset for now!
 #    energy=energy.loc[:]
+#    maybe use P10
   
     
     plt.plot(energy["Energy"].iloc[:])    
@@ -113,6 +113,8 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     while t < energy.shape[0]: 
 #        print("the t value is currently:", t)
 #        print("the energy value is currently:", energy["Energy"].iloc[t])
+    
+        #there is a weird edge case where this is 0, so both thresh are 0
         thresh1=energy["Energy"].iloc[t]
         thresh2=thresh1*2 #originally this is 2
         
@@ -131,8 +133,10 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
        
         duration_t=t #FIXME: this is probs the bug
         
-        while(energy["Energy"].iloc[duration_t] >= thresh1 and duration_t < energy.shape[0] -1 ):
+        while(energy["Energy"].iloc[duration_t] > thresh1 and duration_t < energy.shape[0] -1 ):
             duration_t+=1
+        #maybe this shouldnt be here?
+        duration_t+=1
         print("I think the peak is between", local_t)
         print("and it's duration is until time", duration_t)
         t=duration_t
@@ -151,12 +155,12 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         #maybe update the start of the buffer here?
         start_segment=t        
         
-        t+=1
+#        t+=1
     
-    peaks=pd.DataFrame(peak_dictionary)
-#    peaks.to_csv(path+subj+"_peaks.csv")
+    peaks_df=pd.DataFrame(peak_dictionary)
+    peaks_df.to_csv(path+subj+"_peaks.csv")
     
-    return peaks
+    return peaks_df
     
 def featureGeneration(smooth, peaks):
     #do some stuff to shape according to the peaks and then have a for loop
@@ -231,19 +235,21 @@ if __name__ == "__main__":
         raw=readData(path+file_name)
         smoothed=smooth(raw)
     else:
-        smoothed=pd.read_csv(subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
+        smoothed=pd.read_csv(path+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
+    
     if not os.path.exists(path+subj+"_energy.csv"):
         energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
     else:
-        energy=pd.read_csv(subj+"_energy.csv", names=["Energy"],index_col=0, header=0)
+        energy=pd.read_csv(path+subj+"_energy.csv", names=["Energy"],index_col=0, header=0)
+    
     if not os.path.exists(path+subj+"_peaks.csv"):
         # use my own function to see what is happening
-        energy=pd.DataFrame(np.multiply(np.arange(100),2*np.sin(0.1*np.arange(100))**2),columns=["Energy"])  
+#        energy=pd.DataFrame(np.multiply(np.arange(100),2*np.sin(.1*np.arange(100))**2)+10-0.1*np.arange(100),columns=["Energy"])  
         peaks=hooverSegmentation(energy)
     else:
         peaks=pd.read_csv(path+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
       
-    if not os.path.exists(path+subj+"_peaks.csv"):
+    if not os.path.exists(path+subj+"_features.csv"):
         features=featureGeneration(smoothed,peaks)
     else:
         features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
@@ -251,7 +257,7 @@ if __name__ == "__main__":
     #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
     
     #these targets are not right but just go with it
-    targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"]) #change this to a function that reads in the episode time and calculates if its in the segement
+#    targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"]) #change this to a function that reads in the episode time and calculates if its in the segement
     
     
 #    classification(features,targets)
