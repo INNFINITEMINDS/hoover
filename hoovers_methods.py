@@ -79,6 +79,7 @@ def energyGeneration(x): #maybe change this to include Time?
     #Naively try 20 seconds 720
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
+    #there is something weird when it happens all the way through and not in chunks
     energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size,1)) , columns=["Energy"])
     
 
@@ -90,6 +91,9 @@ def energyGeneration(x): #maybe change this to include Time?
         sumy=sum([abs(number) for number in x["Linear_Accel_y"].iloc[int(window_size/2)+ii:window_size+ii]])
         sumz=sum([abs(number) for number in x["Linear_Accel_z"].iloc[int(window_size/2)+ii:window_size+ii]])
         energy_df["Energy"].iloc[ii]=1/(window_size+1)*(sumx+sumy+sumz)
+        
+        if(ii%1000==1):
+            print("I am on number",ii)
             
     energy_df.to_csv(path+subj+"_energy.csv")
     
@@ -101,9 +105,6 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     start_segment=0
     #Use a subset for now!
 #    energy=energy.loc[:]
-#    maybe use P10
-  
-    
     plt.plot(energy["Energy"].iloc[:])    
     plt.show()    
     
@@ -111,13 +112,9 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         
     print(energy.shape[0])
     while t < energy.shape[0]: 
-#        print("the t value is currently:", t)
-#        print("the energy value is currently:", energy["Energy"].iloc[t])
-    
         #there is a weird edge case where this is 0, so both thresh are 0
         thresh1=energy["Energy"].iloc[t]
         thresh2=thresh1*2 #originally this is 2
-        
 #        print("the thresholds are",thresh1,thresh2)
         
         local_t=t
@@ -130,7 +127,6 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
                 thresh2=thresh1*2
                 
         t=local_t
-       
         duration_t=t #FIXME: this is probs the bug
         
         while(energy["Energy"].iloc[duration_t] > thresh1 and duration_t < energy.shape[0] -1 ):
@@ -154,9 +150,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         
         #maybe update the start of the buffer here?
         start_segment=t        
-        
-#        t+=1
-    
+            
     peaks_df=pd.DataFrame(peak_dictionary)
     peaks_df.to_csv(path+subj+"_peaks.csv")
     
@@ -223,12 +217,19 @@ def classification(feats,target):
     print(gnb.predict_proba(features))
     
     #raise Exception("Not impletemented")
-
+def makeSignalPlot(signal,title):
+    plt.title(title)
+    plt.plot(signal["Linear_Accel_x"])
+    plt.plot(signal["Linear_Accel_y"])
+    plt.plot(signal["Linear_Accel_z"])
+    plt.show()
+    
+    
 def makePlot(peaks,energy):
-     plt.plot(peaks["time"],peaks["value"], marker='o', linestyle='None', color='r')
-     plt.plot(energy["Energy"])
-     plt.show()
-     plt.savefig("annotatedEnergy.png" )
+    plt.plot(peaks["time"],peaks["value"], marker='o', linestyle='None', color='r')
+    plt.plot(energy["Energy"])
+    plt.show()
+    plt.savefig(path+"annotatedEnergy.png" ) #this doesn't work
 
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
