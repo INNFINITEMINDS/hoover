@@ -38,9 +38,9 @@ def readData(path):
     #just for now cut the data by a lot to make it managable
     X = data[1:,1:] #we want all of them except the first col, which is indices
     
-
+    X_df=pd.DataFrame(X,columns=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"	])
     print("done reading in the data")
-    return X
+    return X_df
 
 def gauss(t,n,sigma): #In the paper n=31 sigma=10
     num=np.exp(- t**2 / (2*sigma**2))
@@ -58,10 +58,8 @@ def smooth(x): #TODO: figure out good params for the smoothing
     #not really about sigma or window size, or end behavior     
     y=x    
     
-
-    
-    for col in [0, 1, 2, 3, 5, 6]: #FIXME: skip the time index
-        y[:,col]=scipy.ndimage.filters.gaussian_filter1d(x[:,col], 10)#maybe replace this with the other helper function
+    for col in ["Linear_Accel_x", "Angular_Velocity_x", "Linear_Accel_y", "Angular_Velocity_z", "Angular_Velocity_y","Linear_Accel_z"]: #FIXME: skip the time index
+       y[col].iloc[:]=scipy.ndimage.filters.gaussian_filter1d(x[col].iloc[:], 10)#maybe replace this with the other helper function
         
         
         #this is from the paper
@@ -234,9 +232,12 @@ def makePlot(peaks,energy):
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
         raw=readData(path+file_name)
+        makeSignalPlot(raw,"raw")
         smoothed=smooth(raw)
     else:
         smoothed=pd.read_csv(path+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
+    
+    makeSignalPlot(smoothed,"smoothed")    
     
     if not os.path.exists(path+subj+"_energy.csv"):
         energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
