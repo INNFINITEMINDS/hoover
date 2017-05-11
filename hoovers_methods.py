@@ -73,21 +73,24 @@ def smooth(x): #TODO: figure out good params for the smoothing
     
 def energyGeneration(x): #maybe change this to include Time?
     #energy goes first (look at eq 2 from paper)    
-    window_size=1860#360#720
+    window_size=310#1860#360#720
     #Naively try 20 seconds 720
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
     #there is something weird when it happens all the way through and not in chunks
-    energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size,1)) , columns=["Energy"])
+    
+    
+    #cut around the part where they shake their arms
+    energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size-8000,1)) , columns=["Energy"])
     
 
 #    iter=0
     print("this thing should happen times",x.shape[0]-window_size)    
     
-    for ii in range(x.shape[0]-window_size): 
-        sumx=sum([abs(number) for number in x["Linear_Accel_x"].iloc[int(window_size/2)+ii:window_size+ii]])
-        sumy=sum([abs(number) for number in x["Linear_Accel_y"].iloc[int(window_size/2)+ii:window_size+ii]])
-        sumz=sum([abs(number) for number in x["Linear_Accel_z"].iloc[int(window_size/2)+ii:window_size+ii]])
+    for ii in range(x.shape[0]-window_size-8000): 
+        sumx=sum([abs(number) for number in x["Linear_Accel_x"].iloc[int(window_size/2)+ii+8000:window_size+ii+8000]])
+        sumy=sum([abs(number) for number in x["Linear_Accel_y"].iloc[int(window_size/2)+ii+8000:window_size+ii+8000]])
+        sumz=sum([abs(number) for number in x["Linear_Accel_z"].iloc[int(window_size/2)+ii+8000:window_size+ii+8000]])
         energy_df["Energy"].iloc[ii]=1/(window_size+1)*(sumx+sumy+sumz)
         
         if(ii%1000==1):
