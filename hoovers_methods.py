@@ -73,7 +73,7 @@ def smooth(x): #TODO: figure out good params for the smoothing
     
 def energyGeneration(x): #maybe change this to include Time?
     #energy goes first (look at eq 2 from paper)    
-    window_size=1860
+    window_size=1860#360#720
     #Naively try 20 seconds 720
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
@@ -227,7 +227,6 @@ def makePlot(peaks,energy):
     plt.plot(peaks["time"],peaks["value"], marker='o', linestyle='None', color='r')
     plt.plot(energy["Energy"])
     plt.show()
-    plt.savefig(path+"annotatedEnergy.png" ) #this doesn't work
 
 if __name__ == "__main__":
     if not os.path.exists(path+subj+"_smoothed.csv"):
