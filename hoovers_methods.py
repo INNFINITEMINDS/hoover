@@ -71,30 +71,27 @@ def smooth(x): #TODO: figure out good params for the smoothing
     print("I smoothed some data")
     return smoothed_df
     
-def energyGeneration(x): #maybe change this to include Time?
+def energyGeneration(x): 
     #energy goes first (look at eq 2 from paper)    
-    window_size=310#1860#360#720
+    window_size=720#1860#360#720
     #Naively try 20 seconds 720
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
-    #there is something weird when it happens all the way through and not in chunks
-    
-    
     #cut around the part where they shake their arms
-    energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size-8000,1)) , columns=["Energy"])
+    energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size,2)) , columns=["Energy","Time"])
     
-
-#    iter=0
     print("this thing should happen times",x.shape[0]-window_size)    
     
-    for ii in range(x.shape[0]-window_size-8000): 
-        sumx=sum([abs(number) for number in x["Linear_Accel_x"].iloc[int(window_size/2)+ii+8000:window_size+ii+8000]])
-        sumy=sum([abs(number) for number in x["Linear_Accel_y"].iloc[int(window_size/2)+ii+8000:window_size+ii+8000]])
-        sumz=sum([abs(number) for number in x["Linear_Accel_z"].iloc[int(window_size/2)+ii+8000:window_size+ii+8000]])
+    for ii in range(x.shape[0]-window_size): 
+        sumx=sum([abs(number) for number in x["Linear_Accel_x"].iloc[int(window_size/2)+ii:window_size+ii]])
+        sumy=sum([abs(number) for number in x["Linear_Accel_y"].iloc[int(window_size/2)+ii:window_size+ii]])
+        sumz=sum([abs(number) for number in x["Linear_Accel_z"].iloc[int(window_size/2)+ii:window_size+ii]])
         energy_df["Energy"].iloc[ii]=1/(window_size+1)*(sumx+sumy+sumz)
         
+        energy_df["Time"].iloc[ii]=x["Time"].iloc[ii]
         if(ii%1000==1):
             print("I am on number",ii)
+            assert energy_df["Time"].iloc[ii] != energy_df["Time"].iloc[ii-1]
             
     energy_df.to_csv(path+subj+"_energy.csv")
     
@@ -146,7 +143,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         print("this should be the index",hmm)
 
         #times part is not right maybe have a +t because argmax might be from the start of the interval
-        peak_dictionary["time"].append(hmm)
+        peak_dictionary["time"].append(energy["Time"].iloc[hmm])
         peak_dictionary["value"].append(local_peak)
         
         #maybe update the start of the buffer here?
@@ -158,9 +155,6 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     return peaks_df
     
 def featureGeneration(smooth, peaks):
-    #do some stuff to shape according to the peaks and then have a for loop
-    #in each for loop, they should add there stuff to a csv
-    
     #TODO: this first part
     #smooth + peaks -> data
     number_segments=peaks.shape[0]+1    
@@ -188,8 +182,7 @@ def manipulationFeature(segment):
     num=[abs(number) for number in segment["Angular_Velocity_x"]]+[abs(number) for number in segment["Angular_Velocity_y"]]+[abs(number) for number in segment["Angular_Velocity_z"]]
     denom=[abs(number) for number in segment["Linear_Accel_x"]]+[abs(number) for number in segment["Linear_Accel_y"]]+[abs(number) for number in segment["Linear_Accel_z"]]
     
-    manip=1/(len(segment))*sum(np.divide(num,denom)) # I really hope this is elementwise
-    #also hope this is in degrees per second
+    manip=1/(len(segment))*sum(np.divide(num,denom))
     
     return manip
     
@@ -199,36 +192,43 @@ def linearAccelerationFeature(segment):
     return linacc
   
 def wristRollFeature(segment):
-    #double check to make sure this is supposed to be y
     wr=1/(len(segment)) * sum([abs(number - np.average(segment["Angular_Velocity_y"])) for number in segment["Angular_Velocity_y"]])
     
     return wr
     
 def wristRollRegularityFeature(segment):
-    #I don't get the whole +8 thing
     #TODO: fix this with the + 8 seconds
     return 1/(len(segment))*sum([1 for number in segment["Angular_Velocity_y"] if abs(number) > 10 ])
 
 
 def classification(feats,target):
     gnb=GaussianNB()
+    gnb.fit(feats,target)
+    print(gnb.predict_proba(feats))
+
+def getGroundTruth(filename):
+    #TODO: actually implement this
+    #this is a list of a list of start and endtimes
+    eating_episodes=[[1477152091713.0, 1477152414276.0],[1477155000184.0,1477156616494.0],[1477163082255.0,1477162228768.0]]
     
-    gnb.fit(features,target)
+    return eating_episodes
     
-    print(gnb.predict_proba(features))
     
-    #raise Exception("Not impletemented")
 def makeSignalPlot(signal,title):
     plt.title(title)
-    plt.plot(signal["Linear_Accel_x"])
-    plt.plot(signal["Linear_Accel_y"])
-    plt.plot(signal["Linear_Accel_z"])
+    plt.plot(signal["Time"],signal["Linear_Accel_x"])
+    plt.plot(signal["Time"],signal["Linear_Accel_y"])
+    plt.plot(signal["Time"],signal["Linear_Accel_z"])
     plt.show()
     
-    
-def makePlot(peaks,energy):
+def makePlot(peaks,energy,gtruth):
     plt.plot(peaks["time"],peaks["value"], marker='o', linestyle='None', color='r')
-    plt.plot(energy["Energy"])
+    plt.plot(energy["Time"],energy["Energy"])
+    #FIXME: change the line below to deal with the annotations
+    #plt.axvspan(3, 6, color='red', alpha=0.5)
+    for i in range(len(gtruth)):
+        plt.axvspan(xmin=gtruth[i][0],xmax=gtruth[i][1], color='red', alpha=0.3)
+        
     plt.show()
 
 if __name__ == "__main__":
@@ -238,13 +238,13 @@ if __name__ == "__main__":
         smoothed=smooth(raw)
     else:
         smoothed=pd.read_csv(path+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
-    
+        smoothed= smoothed.iloc[1000:30000]#I'm fucking with this atm 
     makeSignalPlot(smoothed,"smoothed")    
     
     if not os.path.exists(path+subj+"_energy.csv"):
-        energy=energyGeneration(smoothed) #TODO: something with the os to only do this if it doesn't exist
+        energy=energyGeneration(smoothed)
     else:
-        energy=pd.read_csv(path+subj+"_energy.csv", names=["Energy"],index_col=0, header=0)
+        energy=pd.read_csv(path+subj+"_energy.csv", names=["Energy", "Time"],index_col=0, header=0)
     
     if not os.path.exists(path+subj+"_peaks.csv"):
         # use my own function to see what is happening
@@ -253,10 +253,10 @@ if __name__ == "__main__":
     else:
         peaks=pd.read_csv(path+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
       
-    if not os.path.exists(path+subj+"_features.csv"):
-        features=featureGeneration(smoothed,peaks)
-    else:
-        features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
+#    if not os.path.exists(path+subj+"_features.csv"):
+#        features=featureGeneration(smoothed,peaks)
+#    else:
+#        features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
     
     #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
     
@@ -266,7 +266,9 @@ if __name__ == "__main__":
     
 #    classification(features,targets)
     
-    makePlot(peaks,energy)#also add the actual eating epsiodes 
+    
+    truth=getGroundTruth(path+subj)
+    makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
     
     
     print("yay done with main!")
