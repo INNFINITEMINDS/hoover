@@ -8,14 +8,15 @@ implementing Adam Hoover's method
 import csv
 import numpy as np
 import pandas as pd
+import datetime
 import scipy.ndimage
 import matplotlib.pyplot as plt 
 from sklearn.naive_bayes import GaussianNB
 
 import os
 
-path="P4/" #../../MotifCounter/
-subj="P4" #tried P5 and I don't think there was enough variability to do this
+path="P8/" #../../MotifCounter/
+subj="P8" #tried P5 and I don't think there was enough variability to do this
 file_name=subj+"_raw.csv"
 #I'm very worried that this will be noisy as heck
 peaks=""
@@ -101,8 +102,7 @@ def energyGeneration(x):
 def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn't enough varaiblility in the energy data
     t=0
     start_segment=0
-    #Use a subset for now!
-#    energy=energy.loc[:]
+
     plt.plot(energy["Energy"].iloc[:])    
     plt.show()    
     
@@ -112,7 +112,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     while t < energy.shape[0]: 
         #there is a weird edge case where this is 0, so both thresh are 0
         thresh1=energy["Energy"].iloc[t]
-        thresh2=thresh1*2 #originally this is 2
+        thresh2=thresh1*1.1 #originally this is 2
 #        print("the thresholds are",thresh1,thresh2)
         
         local_t=t
@@ -122,14 +122,14 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
                 #reset the thresholds
                 print("reseting the threshold at index",local_t)
                 thresh1=energy["Energy"].iloc[local_t]
-                thresh2=thresh1*2
+                thresh2=thresh1*1.1
                 
         t=local_t
-        duration_t=t #FIXME: this is probs the bug
+        duration_t=t 
         
         while(energy["Energy"].iloc[duration_t] > thresh1 and duration_t < energy.shape[0] -1 ):
             duration_t+=1
-        #maybe this shouldnt be here?
+
         duration_t+=1
         print("I think the peak is between", local_t)
         print("and it's duration is until time", duration_t)
@@ -206,13 +206,21 @@ def classification(feats,target):
     gnb.fit(feats,target)
     print(gnb.predict_proba(feats))
 
-def getGroundTruth(filename):
-    #TODO: actually implement this
-    #this is a list of a list of start and endtimes
-    eating_episodes=[[1477152091713.0, 1477152414276.0],[1477155000184.0,1477156616494.0],[1477163082255.0,1477162228768.0]]
+def getGroundTruth(filename): #FIXME: might have to add the whole hour offset thing!/deal with time zone
+    df=pd.read_csv(filename)
+    out_df=df
+    for ii in range(df["StartTime"].shape[0]):
+        for s in ["StartTime","EndTime"]:
+            try:
+                dtDate=datetime.datetime.strptime(df[s].iloc[ii], "%Y-%m-%d %H:%M:%S.%f")
+            except:
+                dtDate=datetime.datetime.strptime(df[s].iloc[ii], "%Y-%m-%d %H:%M:%S")
+            utime=dtDate.timestamp()*1000
+            print(utime)
+            
+            out_df[s].iloc[ii]=utime
     
-    return eating_episodes
-    
+    return out_df    
     
 def makeSignalPlot(signal,title):
     plt.title(title)
@@ -222,12 +230,11 @@ def makeSignalPlot(signal,title):
     plt.show()
     
 def makePlot(peaks,energy,gtruth):
+    plt.title("Energy vs. Unix time, with highlighted eating episodes")
     plt.plot(peaks["time"],peaks["value"], marker='o', linestyle='None', color='r')
     plt.plot(energy["Time"],energy["Energy"])
-    #FIXME: change the line below to deal with the annotations
-    #plt.axvspan(3, 6, color='red', alpha=0.5)
-    for i in range(len(gtruth)):
-        plt.axvspan(xmin=gtruth[i][0],xmax=gtruth[i][1], color='red', alpha=0.3)
+    for i in range(gtruth.shape[0]):
+        plt.axvspan(xmin=gtruth["StartTime"].iloc[i],xmax=gtruth["EndTime"].iloc[i], color='red', alpha=0.3)
         
     plt.show()
 
@@ -238,7 +245,7 @@ if __name__ == "__main__":
         smoothed=smooth(raw)
     else:
         smoothed=pd.read_csv(path+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
-        smoothed= smoothed.iloc[1000:30000]#I'm fucking with this atm 
+#        smoothed= smoothed.iloc[8000:108000]#I'm fucking with this atm 
     makeSignalPlot(smoothed,"smoothed")    
     
     if not os.path.exists(path+subj+"_energy.csv"):
@@ -249,9 +256,11 @@ if __name__ == "__main__":
     if not os.path.exists(path+subj+"_peaks.csv"):
         # use my own function to see what is happening
 #        energy=pd.DataFrame(np.multiply(np.arange(100),2*np.sin(.1*np.arange(100))**2)+10-0.1*np.arange(100),columns=["Energy"])  
+        #
         peaks=hooverSegmentation(energy)
     else:
         peaks=pd.read_csv(path+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
+        peaks=hooverSegmentation(energy.loc[energy["Time"]>1477151816884.0].loc[ energy["Time"]<1477165667259.0]) #hard code for now
       
 #    if not os.path.exists(path+subj+"_features.csv"):
 #        features=featureGeneration(smoothed,peaks)
@@ -267,7 +276,7 @@ if __name__ == "__main__":
 #    classification(features,targets)
     
     
-    truth=getGroundTruth(path+subj)
+    truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
     makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
     
     
