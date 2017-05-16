@@ -15,8 +15,8 @@ from sklearn.naive_bayes import GaussianNB
 
 import os
 
-path="P8/" #../../MotifCounter/
-subj="P8" #tried P5 and I don't think there was enough variability to do this
+path="P18/" #../../MotifCounter/
+subj="P18" #tried P5 and I don't think there was enough variability to do this
 file_name=subj+"_raw.csv"
 #I'm very worried that this will be noisy as heck
 peaks=""
@@ -74,7 +74,7 @@ def smooth(x): #TODO: figure out good params for the smoothing
     
 def energyGeneration(x): 
     #energy goes first (look at eq 2 from paper)    
-    window_size=720#1860#360#720
+    window_size=360#1860#360#720
     #Naively try 20 seconds 720
     #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
@@ -112,7 +112,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
     while t < energy.shape[0]: 
         #there is a weird edge case where this is 0, so both thresh are 0
         thresh1=energy["Energy"].iloc[t]
-        thresh2=thresh1*1.1 #originally this is 2
+        thresh2=thresh1*1.01 #originally this is 2
 #        print("the thresholds are",thresh1,thresh2)
         
         local_t=t
@@ -245,7 +245,6 @@ if __name__ == "__main__":
         smoothed=smooth(raw)
     else:
         smoothed=pd.read_csv(path+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
-#        smoothed= smoothed.iloc[8000:108000]#I'm fucking with this atm 
     makeSignalPlot(smoothed,"smoothed")    
     
     if not os.path.exists(path+subj+"_energy.csv"):
@@ -260,7 +259,8 @@ if __name__ == "__main__":
         peaks=hooverSegmentation(energy)
     else:
         peaks=pd.read_csv(path+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
-        peaks=hooverSegmentation(energy.loc[energy["Time"]>1477151816884.0].loc[ energy["Time"]<1477165667259.0]) #hard code for now
+
+#        peaks=hooverSegmentation(energy.loc[energy["Time"]>1477151816884.0].loc[ energy["Time"]<1477165667259.0]) #hard code for now
       
 #    if not os.path.exists(path+subj+"_features.csv"):
 #        features=featureGeneration(smoothed,peaks)
