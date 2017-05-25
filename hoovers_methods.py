@@ -55,7 +55,7 @@ def gauss(raw,N,sigma): #In the paper n=31 sigma=10
     for iter in range(N+1,len(raw)):
         smooth_pt=0
         for i in np.arange(-N,1):
-            smooth_pt += raw[iter+i] * np.exp((-(iter+i)^2)/(2*sigma**2))/denom
+            smooth_pt += raw[iter+i] * np.exp((-(i+3)**2)/(2*sigma**2))/denom #literally no clue what is happening but it works ish
         smoothed[iter]=smooth_pt
 
 #   assert something here
@@ -70,7 +70,7 @@ def smooth(x): #TODO: figure out good params for the smoothing
     for col in ["Linear_Accel_x", "Angular_Velocity_x", "Linear_Accel_y", "Angular_Velocity_z", "Angular_Velocity_y","Linear_Accel_z"]: #FIXME: skip the time index
 #       y[col].iloc[:]=scipy.ndimage.filters.gaussian_filter1d(x[col].iloc[:], 10)#maybe replace this with the other helper function
         print("now smoothing ",col)
-        y[col].iloc[:]=gauss(x[col].iloc[:],31,10)
+        y[col].iloc[:]=gauss(x[col].iloc[:],3,10)
         
         
         #this is from the paper
@@ -174,6 +174,7 @@ def featureGeneration(smooth, peaks):
     
     start_t=0    
     iter=0
+    smooth=smooth.set_index(["Time"])
     for t in peaks["time"]:
         segment=smooth.loc[start_t:t]
         features["Manipulation"].iloc[iter]=manipulationFeature(segment)
@@ -272,10 +273,10 @@ if __name__ == "__main__":
 
 #        peaks=hooverSegmentation(energy.loc[energy["Time"]>1477151816884.0].loc[ energy["Time"]<1477165667259.0]) #hard code for now
       
-#    if not os.path.exists(path+subj+"_features.csv"):
-#        features=featureGeneration(smoothed,peaks)
-#    else:
-#        features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
+    if not os.path.exists(path+subj+"_features.csv"):
+        features=featureGeneration(smoothed,peaks)
+    else:
+        features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
     
     #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
     
@@ -286,8 +287,8 @@ if __name__ == "__main__":
 #    classification(features,targets)
     
     
-    truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
-    makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
+#    truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
+#    makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
     
     
     print("yay done with main!")
