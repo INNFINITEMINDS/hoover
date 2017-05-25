@@ -43,15 +43,23 @@ def readData(path):
     print("done reading in the data")
     return X_df
 
-def gauss(t,n,sigma): #In the paper n=31 sigma=10
-    num=np.exp(- t**2 / (2*sigma**2))
-    print(num)
+def gauss(raw,N,sigma): #In the paper n=31 sigma=10
+#    num=np.exp(- t**2 / (2*sigma**2))
+#    print(num)
+#    
+    smoothed=raw
+
+    denom=sum([np.exp((-(number-N)**2)/ (2*sigma**2)) for number in range(N+1)]) 
     
-    denom=sum([np.exp((-(number-n)**2)/ (2*sigma**2)) for number in range(n+1)]) 
-    print(denom)
     
-    print(num/denom)
-    return num/denom
+    for iter in range(N+1,len(raw)):
+        smooth_pt=0
+        for i in np.arange(-N,1):
+            smooth_pt += raw[iter+i] * np.exp((-(iter+i)^2)/(2*sigma**2))/denom
+        smoothed[iter]=smooth_pt
+
+#   assert something here
+    return smoothed
     
 
 def smooth(x): #TODO: figure out good params for the smoothing
@@ -60,7 +68,9 @@ def smooth(x): #TODO: figure out good params for the smoothing
     y=x    
     
     for col in ["Linear_Accel_x", "Angular_Velocity_x", "Linear_Accel_y", "Angular_Velocity_z", "Angular_Velocity_y","Linear_Accel_z"]: #FIXME: skip the time index
-       y[col].iloc[:]=scipy.ndimage.filters.gaussian_filter1d(x[col].iloc[:], 10)#maybe replace this with the other helper function
+#       y[col].iloc[:]=scipy.ndimage.filters.gaussian_filter1d(x[col].iloc[:], 10)#maybe replace this with the other helper function
+        print("now smoothing ",col)
+        y[col].iloc[:]=gauss(x[col].iloc[:],31,10)
         
         
         #this is from the paper
