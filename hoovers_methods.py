@@ -15,8 +15,8 @@ from sklearn.naive_bayes import GaussianNB
 
 import os
 
-path="P18/" #../../MotifCounter/
-subj="P18" #tried P5 and I don't think there was enough variability to do this
+path="P14/" #../../MotifCounter/
+subj="P14" #tried P5 and I don't think there was enough variability to do this
 file_name=subj+"_raw.csv"
 #I'm very worried that this will be noisy as heck
 peaks=""
