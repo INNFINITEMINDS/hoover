@@ -287,8 +287,8 @@ if __name__ == "__main__":
 #    classification(features,targets)
     
     
-#    truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
-#    makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
+    truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
+    makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
     
     
     print("yay done with main!")
