@@ -9,6 +9,7 @@ import csv
 import numpy as np
 import pandas as pd
 import datetime
+from scipy import signal
 import scipy.ndimage
 import matplotlib.pyplot as plt 
 from sklearn.naive_bayes import GaussianNB
@@ -42,25 +43,70 @@ def readData(path):
     X_df=pd.DataFrame(X,columns=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"	])
     print("done reading in the data")
     return X_df
-
-def gauss(raw,N,sigma): #In the paper n=31 sigma=10
-#    num=np.exp(- t**2 / (2*sigma**2))
-#    print(num)
-#    
-    smoothed=raw
-
-    denom=sum([np.exp((-(number-N)**2)/ (2*sigma**2)) for number in range(N+1)]) 
     
-    
-    for iter in range(N+1,len(raw)):
-        smooth_pt=0
-        for i in np.arange(-N,1):
-            smooth_pt += raw[iter+i] * np.exp((-(i+3)**2)/(2*sigma**2))/denom #literally no clue what is happening but it works ish
-        smoothed[iter]=smooth_pt
+def smoothing(dataDf, method="sliding", **kwargs):
 
-#   assert something here
-    return smoothed
+    """smoothing function including sliding smoothing(box smoothing) and gaussian filter
+    Parameters
+    ----------
+        dataDf:                 dataFrame
+        method:                 str.  "sliding" or "gaussian"
+        kwargs:
+          when method == "sliding":
+            winsize:            int
+          when method == "gaussian":
+            winsize:            int
+            sigma:              int
+    Return
+    ------
+        dataDf:                 dataFrame
+    """
+    if method == "sliding":
+        if 'winsize' in kwargs:
+            winsize = kwargs['winsize']
+        else:
+            winsize = 10
+            print("Arg 'winsize' is set as default ", winsize)
+            
+        dataDf = dataDf.rolling(window=winsize, center=False).mean()
+        dataDf = dataDf.fillna(method = 'backfill')
+
+    # TODO: implement gaussian smoothing method according to the requirement
+    elif method == "gaussian":
+
+        if 'winsize' in kwargs:
+            winsize = kwargs['winsize']
+            print('window size: ',  winsize)
+        else:
+            winsize = 10
+            print("Arg 'winsize' is set as default ", winsize)
+
+        if 'sigma' in kwargs:
+            sigma = kwargs['sigma']
+            print('sigma: ', sigma)
+        else:
+            sigma = 7
+            print("Arg 'sigma' is set as default ", sigma)
+
+#        names = list(dataDf.columns.values)
+        arr = dataDf.as_matrix()
+        arr=np.reshape(arr,(arr.shape[0],1))
+        for c in range(arr.shape[1]):
+            col = arr[:,c]
+            pad = [0] * (winsize-1)
+        
+            s=np.r_[pad,col]
+            w = eval('signal.'+method+'('+str(winsize)+','+str(sigma)+ ')')
+            w[32:]=0
+#            print(w)
+            
+            smoothed=np.convolve(w/w.sum(),s,mode='valid')
+            arr[:,c] = smoothed
+
+#        dataDf = pd.DataFrame(data = arr, columns = names)
     
+    arr=np.reshape(arr, (arr.shape[0],))
+    return arr
 
 def smooth(x): #TODO: figure out good params for the smoothing
     #So there are 15 obs/sec and I think the hoover paper smoothed minute by minute
@@ -70,8 +116,8 @@ def smooth(x): #TODO: figure out good params for the smoothing
     for col in ["Linear_Accel_x", "Angular_Velocity_x", "Linear_Accel_y", "Angular_Velocity_z", "Angular_Velocity_y","Linear_Accel_z"]: #FIXME: skip the time index
 #       y[col].iloc[:]=scipy.ndimage.filters.gaussian_filter1d(x[col].iloc[:], 10)#maybe replace this with the other helper function
         print("now smoothing ",col)
-        y[col].iloc[:]=gauss(x[col].iloc[:],3,10)
-        
+#        y[col].iloc[:]=gauss(x[col].iloc[:],3,10)
+        y[col].iloc[:]=smoothing(x[col].iloc[:], method="gaussian", sigma=10, winsize=62)
         
         #this is from the paper
         #might need to have this be a per thing basis
