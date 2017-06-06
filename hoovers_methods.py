@@ -31,13 +31,11 @@ def readData(path):
         d = list(reader)    
     
     # import data and reshape appropriately
-    data = np.array(d).astype("float") #this might be bad because it shouldn't be 0 but it is
-    
+    data = np.array(d).astype("float") 
     
     #Linear_Accel_x	Angular_Velocity_x	Linear_Accel_y	Time	
 #    Angular_Velocity_z	Angular_Velocity_y	Linear_Accel_z
     
-    #just for now cut the data by a lot to make it managable
     X = data[1:,1:] #we want all of them except the first col, which is indices
     
     X_df=pd.DataFrame(X,columns=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"	])
@@ -71,7 +69,6 @@ def smoothing(dataDf, method="sliding", **kwargs):
         dataDf = dataDf.rolling(window=winsize, center=False).mean()
         dataDf = dataDf.fillna(method = 'backfill')
 
-    # TODO: implement gaussian smoothing method according to the requirement
     elif method == "gaussian":
 
         if 'winsize' in kwargs:
@@ -88,7 +85,6 @@ def smoothing(dataDf, method="sliding", **kwargs):
             sigma = 7
             print("Arg 'sigma' is set as default ", sigma)
 
-#        names = list(dataDf.columns.values)
         arr = dataDf.as_matrix()
         arr=np.reshape(arr,(arr.shape[0],1))
         for c in range(arr.shape[1]):
@@ -98,30 +94,22 @@ def smoothing(dataDf, method="sliding", **kwargs):
             s=np.r_[pad,col]
             w = eval('signal.'+method+'('+str(winsize)+','+str(sigma)+ ')')
             w[32:]=0
-#            print(w)
             
             smoothed=np.convolve(w/w.sum(),s,mode='valid')
             arr[:,c] = smoothed
-
-#        dataDf = pd.DataFrame(data = arr, columns = names)
     
     arr=np.reshape(arr, (arr.shape[0],))
+    
     return arr
 
-def smooth(x): #TODO: figure out good params for the smoothing
-    #So there are 15 obs/sec and I think the hoover paper smoothed minute by minute
-    #not really about sigma or window size, or end behavior     
+def smooth(x):     
     y=x    
     
     for col in ["Linear_Accel_x", "Angular_Velocity_x", "Linear_Accel_y", "Angular_Velocity_z", "Angular_Velocity_y","Linear_Accel_z"]: #FIXME: skip the time index
-#       y[col].iloc[:]=scipy.ndimage.filters.gaussian_filter1d(x[col].iloc[:], 10)#maybe replace this with the other helper function
+
         print("now smoothing ",col)
-#        y[col].iloc[:]=gauss(x[col].iloc[:],3,10)
         y[col].iloc[:]=smoothing(x[col].iloc[:], method="gaussian", sigma=10, winsize=62)
         
-        #this is from the paper
-        #might need to have this be a per thing basis
-
     smoothed_df=pd.DataFrame(y)
     smoothed_df.to_csv(path+subj+"_smoothed.csv")    
     
@@ -129,10 +117,9 @@ def smooth(x): #TODO: figure out good params for the smoothing
     return smoothed_df
     
 def energyGeneration(x): 
+    #x is the data frame of smoothed values
     #energy goes first (look at eq 2 from paper)    
     window_size=360#1860#360#720
-    #Naively try 20 seconds 720
-    #1860 #they use 1 minute, so 31hz*60 that many obs per min
     
     #cut around the part where they shake their arms
     energy_df=pd.DataFrame(np.zeros((x.shape[0]-window_size,2)) , columns=["Energy","Time"])
@@ -151,7 +138,6 @@ def energyGeneration(x):
             assert energy_df["Time"].iloc[ii] != energy_df["Time"].iloc[ii-1]
             
     energy_df.to_csv(path+subj+"_energy.csv")
-    
     
     return energy_df
     
@@ -278,6 +264,24 @@ def getGroundTruth(filename): #FIXME: might have to add the whole hour offset th
             out_df[s].iloc[ii]=utime
     
     return out_df    
+
+def labelSegments(peaks, truth):
+
+    number_segments=peaks.shape[0]+1
+    targets=pd.DataFrame(np.zeros((number_segments,1)), columns=["label"])
+    
+    tru=truth["StartTime"].values
+    start_t=0    
+    iter=0
+    for t in peaks["time"]:
+        
+        print(iter)
+        if ( tru< t).any() and (start_t< tru).any():#there is a unix time inbetween start_t and t 
+            targets["label"].iloc[iter]=1
+        iter+=1
+        start_t = t
+        
+    return targets
     
 def makeSignalPlot(signal,title):
     plt.title(title)
@@ -326,14 +330,16 @@ if __name__ == "__main__":
     
     #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
     
-    #these targets are not right but just go with it
-#    targets=pd.read_csv(path+subj+"_targets.csv",header=0,names=["labels"]) #change this to a function that reads in the episode time and calculates if its in the segement
-    
-    
-#    classification(features,targets)
-    
-    
+
+#TODO: One versus all cross validation!
+
     truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
+    targets = labelSegments(peaks, truth)
+    print(targets)
+    classification(features,targets)
+    
+    
+   
     makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
     
     
