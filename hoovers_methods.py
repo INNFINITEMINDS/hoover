@@ -16,8 +16,7 @@ from sklearn.naive_bayes import GaussianNB
 
 import os
 
-path="P14/" #../../MotifCounter/
-subj="P14" #tried P5 and I don't think there was enough variability to do this
+subj="P4" #tried P5 and I don't think there was enough variability to do this
 file_name=subj+"_raw.csv"
 #I'm very worried that this will be noisy as heck
 peaks=""
@@ -111,7 +110,7 @@ def smooth(x):
         y[col].iloc[:]=smoothing(x[col].iloc[:], method="gaussian", sigma=10, winsize=62)
         
     smoothed_df=pd.DataFrame(y)
-    smoothed_df.to_csv(path+subj+"_smoothed.csv")    
+    smoothed_df.to_csv("smoothed/"+subj+"_smoothed.csv")    
     
     print("I smoothed some data")
     return smoothed_df
@@ -137,7 +136,7 @@ def energyGeneration(x):
             print("I am on number",ii)
             assert energy_df["Time"].iloc[ii] != energy_df["Time"].iloc[ii-1]
             
-    energy_df.to_csv(path+subj+"_energy.csv")
+    energy_df.to_csv("energy/"+subj+"_energy.csv")
     
     return energy_df
     
@@ -192,7 +191,7 @@ def hooverSegmentation(energy): #I'm pretty sure this is working, but there isn'
         start_segment=t        
             
     peaks_df=pd.DataFrame(peak_dictionary)
-    peaks_df.to_csv(path+subj+"_peaks.csv")
+    peaks_df.to_csv("peaks/"+subj+"_peaks.csv")
     
     return peaks_df
     
@@ -217,7 +216,7 @@ def featureGeneration(smooth, peaks):
         iter+=1
         start_t=t
 
-    features.to_csv(path+subj+"_features.csv")
+    features.to_csv("features/"+subj+"_features.csv")
     
     return features
     
@@ -300,45 +299,45 @@ def makePlot(peaks,energy,gtruth):
     plt.show()
 
 if __name__ == "__main__":
-    if not os.path.exists(path+subj+"_smoothed.csv"):
-        raw=readData(path+file_name)
+    if not os.path.exists("smoothed/"+subj+"_smoothed.csv"):
+        raw=readData("raw/"+file_name)
         makeSignalPlot(raw,"raw")
         smoothed=smooth(raw)
     else:
-        smoothed=pd.read_csv(path+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
+        smoothed=pd.read_csv("smoothed/"+subj+"_smoothed.csv",index_col=0, header=0,names=["Linear_Accel_x","Angular_Velocity_x","Linear_Accel_y","Time","Angular_Velocity_z","Angular_Velocity_y","Linear_Accel_z"])
     makeSignalPlot(smoothed,"smoothed")    
     
-    if not os.path.exists(path+subj+"_energy.csv"):
+    if not os.path.exists("energy/"+subj+"_energy.csv"):
         energy=energyGeneration(smoothed)
     else:
-        energy=pd.read_csv(path+subj+"_energy.csv", names=["Energy", "Time"],index_col=0, header=0)
+        energy=pd.read_csv("energy/"+subj+"_energy.csv", names=["Energy", "Time"],index_col=0, header=0)
     
-    if not os.path.exists(path+subj+"_peaks.csv"):
+    if not os.path.exists("peaks/"+subj+"_peaks.csv"):
         # use my own function to see what is happening
 #        energy=pd.DataFrame(np.multiply(np.arange(100),2*np.sin(.1*np.arange(100))**2)+10-0.1*np.arange(100),columns=["Energy"])  
         #
         peaks=hooverSegmentation(energy)
     else:
-        peaks=pd.read_csv(path+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
+        peaks=pd.read_csv("peaks/"+subj+"_peaks.csv", names=["time",'value'],index_col=0, header=0)
 
 #        peaks=hooverSegmentation(energy.loc[energy["Time"]>1477151816884.0].loc[ energy["Time"]<1477165667259.0]) #hard code for now
       
-    if not os.path.exists(path+subj+"_features.csv"):
+    if not os.path.exists("features/"+subj+"_features.csv"):
         features=featureGeneration(smoothed,peaks)
     else:
-        features=pd.read_csv(path+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
+        features=pd.read_csv("features/"+subj+"_features.csv",index_col=0, header=0,names=["LinearAcc","Manipulation", "WristRoll","WristRollRegularity"])
     
     #smoothed["Time"].iloc[peaks["time"]] this is not in the right spot, but it might be good
     
 
 #TODO: One versus all cross validation!
 
-    truth=getGroundTruth(path+subj+"_gestures.csv") #TODO: do the 
+    truth=getGroundTruth("gestures/"+subj+"_gestures.csv") #TODO: do the 
     targets = labelSegments(peaks, truth)
     print(targets)
     classification(features,targets)
     
-    
+#TODO: probably change the folder structure to match shibo 
    
     makePlot(peaks,energy, truth)#also add the actual eating epsiodes 
     
